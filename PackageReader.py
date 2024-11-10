@@ -8,7 +8,7 @@ class PackageReader():
 
     def read_packages(self):
         package_info = {}
-        site_packages_path = os.path.join(self.project_path, 'venv', 'Lib', 'site-packages')
+        site_packages_path = os.path.join(self.project_path, '.venv', 'Lib', 'site-packages')
         site_packages_contents = os.listdir(site_packages_path)
         always_installed_packages=['pip','setuptools','wheel']
         for file in site_packages_contents:
