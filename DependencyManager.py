@@ -2,6 +2,8 @@ import os
 import requests
 from ProjectInfoSingleton import ProjectInfo
 import re
+from packaging.version import Version
+
 
 class DependencyManager():
     def __init__(self, project_path, project_info):
@@ -34,25 +36,39 @@ class DependencyManager():
 
         return contents
 
-    def is_py_compatible(self,dependency):
+    def is_py_compatible(self, dependency):
         python_version = self.project_info.get_python_version(self.project_path)
-        info=re.findall(r"python_version|>=|<=|==|<|>|(?<=\"|').*?(?=\"|')",dependency)
+        info = re.findall(r"python_version|>=|<=|==|<|>|(?<=\"|').*?(?=\"|')", dependency)
+        comp_operator = ''
+        version = ''
         for result in range(len(info)):
             if info[result] == 'python_version':
-                comp_operator=info[result+1]
-                version=info[result+2]
+                comp_operator = info[result + 1]
+                version = info[result + 2]
                 break
-        pass
+
+        match comp_operator:
+            case "<":
+                return Version(python_version) < Version(version)
+            case ">":
+                return Version(python_version) > Version(version)
+            case ">=":
+                return Version(python_version) >= Version(version)
+            case "<=":
+                return Version(python_version) <= Version(version)
+            case "==":
+                return Version(python_version) == Version(version)
 
     def filter_by_py_version(self, dependencies):
 
         filtered_dependencies = []
         for dependency in dependencies:
             if 'python_version' in dependency:
-                self.is_py_compatible(dependency)
+                print(self.is_py_compatible(dependency))
+
 
 if __name__ == "__main__":
     p_info = ProjectInfo()
     d = DependencyManager('C:/Users/vland/source/repos/depmanagertestproject', p_info)
     # print(d.get_all_installed_package_dependencies('pandas-2.2.3'))
-    print(d.get_dependencies_pypi('pandas'))
+    d.get_dependencies_pypi('pandas')
