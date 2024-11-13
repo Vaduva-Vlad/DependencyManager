@@ -18,5 +18,4 @@ class PackageReader():
                 version = package_and_version[1]
                 if package not in always_installed_packages:
                     package_info[package] = version
-        print(package_info)
         return package_info
