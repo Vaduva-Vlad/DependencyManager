@@ -1,6 +1,6 @@
 import os
 import requests
-from ProjectInfoSingleton import ProjectInfo
+from ProjectInfo import ProjectInfo
 import re
 from packaging.version import Version
 
