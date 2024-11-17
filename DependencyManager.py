@@ -24,11 +24,6 @@ class DependencyManager:
             case 'all':
                 return dependencies
 
-    def get_dependencies_pypi(self, package, type='all'):
-        url = f"https://pypi.org/pypi/{package}/json"
-        data = requests.get(url).json()['info']['requires_dist']
-        return data
-
     def get_metadata(self, package):
         metadata_path = os.path.join(self.project_path, '.venv', 'Lib', 'site-packages', f"{package}.dist-info",
                                      "METADATA")
@@ -37,27 +32,35 @@ class DependencyManager:
 
         return contents
 
+    def get_dependencies_pypi(self, package, type='all'):
+        url = f"https://pypi.org/pypi/{package}/json"
+        data = requests.get(url).json()['info']['requires_dist']
+        return data
+
     def get_py_dep_reqs(self, dependency):
         info = re.findall(r"(python_version)|(>=|<=|==|<|>)|\"(.*?)\"", dependency)
         info = [tuple(filter(None, item)) for item in info]
         results = [r for tup in info for r in tup]
-        operators = []
+        reqs = {}
         for result in range(len(results)):
             if results[result] == 'python_version':
-                operators.append(results[result + 1])
+                operator=results[result + 1]
                 version = results[result + 2]
+                reqs[operator]=version
                 # if results[result + 3] in op.keys():
                 #     operators.append(results[result + 3])
-                return operators, version
+                return reqs
 
     def is_py_compatible(self, dependency):
         python_version = self.project_info.get_python_version(self.project_path)
-        operators, version = self.get_py_dep_reqs(dependency)
+        reqs = self.get_py_dep_reqs(dependency)
         python_version = Version(python_version)
-        version = Version(version)
-        if len(operators)==1:
-            return op[operators[0]](python_version, version)
-        return op[operators[0]](python_version, version) and op[operators[1]](python_version, version)
+
+        for operator in reqs.keys():
+            version=Version(reqs[operator])
+            if not op[operator](python_version,version):
+                return False
+        return True
 
     def filter_by_py_version(self, dependencies):
         filtered_dependencies = dependencies.copy()
@@ -74,6 +77,6 @@ if __name__ == "__main__":
     p_info = ProjectInfo()
     d = DependencyManager('C:/Users/vland/source/repos/depmanagertestproject', p_info)
     # print(d.get_all_installed_package_dependencies('pandas-2.2.3'))
-    data = d.get_dependencies_pypi('pandas')
+    data = d.get_dependencies_pypi('torch')
     c = d.filter_by_installable(data)
     print(c)
