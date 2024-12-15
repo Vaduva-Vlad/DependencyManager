@@ -4,13 +4,17 @@ from ProjectInfo import ProjectInfo
 import re
 from packaging.version import Version
 from data_structures.operator_lookup_table import op
+from data_structures.DependencyTree import DependencyTree
+from data_structures.DepNode import DepNode
 
 
 class DependencyManager:
-    def __init__(self, project_path, project_info):
+    def __init__(self, project_path, project_info, installed_packages=None):
         self.project_path = project_path
         self.metadata_buffer = []
         self.project_info = project_info
+        self.dep_tree = None
+        self.installed_packages = installed_packages
 
     def get_installed_package_dependencies(self, package, type='all'):
         self.metadata_buffer = self.get_metadata(package)
@@ -32,10 +36,13 @@ class DependencyManager:
 
         return contents
 
-    def get_dependencies_pypi(self, package, type='all'):
-        url = f"https://pypi.org/pypi/{package}/json"
+    def get_dependencies_pypi(self, package, version=None, type='all'):
+        if version is None:
+            url = f"https://pypi.org/pypi/{package}/json"
+        else:
+            url = f"https://pypi.org/pypi/{package}/{version}/json"
         data = requests.get(url).json()['info']['requires_dist']
-        return data
+        return data if data is not None else []
 
     def get_py_dep_reqs(self, dependency):
         info = re.findall(r"(python_version)|(>=|<=|==|<|>)|\"(.*?)\"", dependency)
@@ -44,9 +51,9 @@ class DependencyManager:
         reqs = {}
         for result in range(len(results)):
             if results[result] == 'python_version':
-                operator=results[result + 1]
+                operator = results[result + 1]
                 version = results[result + 2]
-                reqs[operator]=version
+                reqs[operator] = version
                 # if results[result + 3] in op.keys():
                 #     operators.append(results[result + 3])
                 return reqs
@@ -57,8 +64,8 @@ class DependencyManager:
         python_version = Version(python_version)
 
         for operator in reqs.keys():
-            version=Version(reqs[operator])
-            if not op[operator](python_version,version):
+            version = Version(reqs[operator])
+            if not op[operator](python_version, version):
                 return False
         return True
 
@@ -72,11 +79,27 @@ class DependencyManager:
     def filter_by_installable(self, dependencies):
         return self.filter_by_py_version(dependencies)
 
+    def build_branches(self, pkg_name, version, tree):
+        dependencies=self.get_installed_package_dependencies('-'.join([pkg_name,version]))
+
+        dependencies = self.filter_by_installable(dependencies)
+        if len(dependencies) == 0:
+            return
+        for dependency in dependencies:
+            node = DepNode(dependency)
+            if node.pkg_name not in self.installed_packages:
+                print('here')
+
+    def build_dep_tree(self, package_name, version):
+        root = DepNode(package_name, version)
+        tree = DependencyTree(root)
+        self.build_branches(package_name, version, tree)
 
 if __name__ == "__main__":
     p_info = ProjectInfo()
-    d = DependencyManager('C:/Users/vland/source/repos/depmanagertestproject', p_info)
-    # print(d.get_all_installed_package_dependencies('pandas-2.2.3'))
-    data = d.get_dependencies_pypi('torch')
-    c = d.filter_by_installable(data)
-    print(c)
+    d = DependencyManager('C:/Users/vland/source/repos/depmanagertestproject', p_info,{'blinker': '1.9.0', 'click': '8.1.7', 'colorama': '0.4.6', 'flask': '3.1.0', 'itsdangerous': '2.2.0', 'jinja2': '3.1.4', 'MarkupSafe': '3.0.2', 'numpy': '2.1.3', 'pandas': '2.2.3', 'python_dateutil': '2.9.0.post0', 'pytz': '2024.2', 'six': '1.16.0', 'tzdata': '2024.2', 'werkzeug': '3.1.3'})
+    # data = d.get_installed_package_dependencies('pandas-2.2.3')
+    # data = d.get_dependencies_pypi('requests')
+    # c = d.filter_by_installable(data)
+    # print(c)
+    d.build_dep_tree('pandas','2.2.3')

@@ -13,7 +13,7 @@ class ProjectExplorer():
         self.dependency_manager=DependencyManager(project_path, project_info)
 
     def get_installed_dependencies(self,package_name):
-        installed_packages=self.package_reader.read_packages()
+        installed_packages=self.package_reader.read_installed_packages()
         if package_name not in installed_packages:
             raise PackageNotInstalledException()
         package_version=installed_packages[package_name]

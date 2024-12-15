@@ -1,4 +1,4 @@
-from DepNode import DepNode
+from data_structures.DepNode import DepNode
 
 
 class DependencyTree:
