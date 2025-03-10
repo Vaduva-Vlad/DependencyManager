@@ -40,6 +40,7 @@ class DepNode:
         child=DepNode(dependency)
         child.parent=self
         self.children.append(child)
+        return child
 
     def set_version(self,version):
         self.version=version

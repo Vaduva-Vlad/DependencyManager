@@ -79,21 +79,22 @@ class DependencyManager:
     def filter_by_installable(self, dependencies):
         return self.filter_by_py_version(dependencies)
 
-    def build_branches(self, pkg_name, version, tree):
+    def build_branches(self, current_node, pkg_name, version, tree):
         dependencies=self.get_installed_package_dependencies('-'.join([pkg_name,version]))
 
         dependencies = self.filter_by_installable(dependencies)
         if len(dependencies) == 0:
             return
         for dependency in dependencies:
-            node = DepNode(dependency)
-            if node.pkg_name not in self.installed_packages:
+            node=current_node.add_child(dependency)
+            if node.pkg_name not in self.installed_packages.keys():
                 print('here')
 
     def build_dep_tree(self, package_name, version):
         root = DepNode(package_name, version)
         tree = DependencyTree(root)
-        self.build_branches(package_name, version, tree)
+        self.build_branches(root,package_name, version, tree)
+        pass
 
 if __name__ == "__main__":
     p_info = ProjectInfo()
