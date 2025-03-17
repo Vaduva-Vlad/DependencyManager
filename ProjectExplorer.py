@@ -10,7 +10,7 @@ class ProjectExplorer():
         self.project_path = project_path
         self.project_info = project_info
         self.package_reader=PackageReader(project_path)
-        self.dependency_manager=DependencyManager(project_path, project_info)
+        self.dependency_manager=DependencyManager(project_path, project_info,self.package_reader)
 
     def get_installed_dependencies(self,package_name):
         installed_packages=self.package_reader.read_installed_packages()
