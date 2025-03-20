@@ -6,18 +6,23 @@ class DependencyTree:
         self.root = root
         self.has_cycle = False
 
-    def dfs(self, node, visited=[], path=[]):
+    def find_cycle(self, node, visited=[], path=[]):
         if node in path:
             self.has_cycle = True
         if node not in visited:
-            print(node.pkg_name)
-
             visited.append(node)
             path.append(node)
             for child in node.children:
-                self.dfs(child, visited, path)
+                self.find_cycle(child, visited, path)
             path.pop()
 
+    def print_tree(self, node, level=0,visited=[], path=[]):
+        print("  "*level,node.pkg_name)
+        visited.append(node)
+        path.append(node)
+        for child in node.children:
+            self.print_tree(child, level+1,visited, path)
+        path.pop()
 
 if __name__ == "__main__":
     # root = DepNode('5')
@@ -48,5 +53,7 @@ if __name__ == "__main__":
     #c.children.append(d)
     d.children.append(c)
     t=DependencyTree(root)
-    t.dfs(t.root)
+    t.find_cycle(t.root)
     print(t.has_cycle)
+
+    t.print_tree(t.root)

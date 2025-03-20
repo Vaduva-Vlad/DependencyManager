@@ -17,6 +17,6 @@ class DepNode:
         self.version=version
 
 if __name__=="__main__":
-    node=DepNode('pandas')
+    node=DepNode('numpy >= 1.23.2; python_version == "3.11"')
     node.add_child('numpy >= 1.23.2; python_version == "3.11"')
     print(node.children[0].parent)

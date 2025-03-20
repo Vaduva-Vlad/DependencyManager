@@ -19,10 +19,6 @@ class DependencyManager:
         self.package_reader = package_reader
         self.installed_packages = self.package_reader.read_installed_packages()
 
-    def remove_duplicates(self, dependencies):
-        dependencies=[dependency.split("extra ==")[0].strip(";") for dependency in dependencies]
-        return dependencies
-
     def get_installed_package_dependencies(self, package, type=None):
         self.metadata_buffer = self.get_metadata(package)
 
@@ -33,7 +29,7 @@ class DependencyManager:
                 dependencies.append(trimmed_row)
         match type:
             case None:
-                return self.remove_duplicates(dependencies)
+                return [dep for dep in dependencies if "extra ==" not in dep]
 
     def get_metadata(self, package):
         metadata_path = os.path.join(self.project_path, '.venv', 'Lib', 'site-packages', f"{package}.dist-info",
@@ -86,18 +82,24 @@ class DependencyManager:
     def filter_by_installable(self, dependencies):
         return self.filter_by_py_version(dependencies)
 
+    def get_dep_names(self,dependencies):
+        dependency_names=[]
+        for dependency in dependencies:
+            name=PackageReader.get_package_name(dependency)
+            name='_'.join(name.split('-'))
+            dependency_names.append(name)
+        return dependency_names
+
     def build_branches(self, current_node, tree):
         dependencies=self.get_installed_package_dependencies('-'.join([current_node.pkg_name,current_node.version]))
-
         dependencies = self.filter_by_installable(dependencies)
+        dependency_names=self.get_dep_names(dependencies)
         if len(dependencies) == 0:
             return
-        for dependency in dependencies:
-            node=DepNode(dependency)
-            if node.pkg_name=='jinja2':
-                pass
-            if node.pkg_name not in self.installed_packages:
+        for package in self.installed_packages.keys():
+            if package not in dependency_names:
                 continue
+            node = DepNode(package, self.installed_packages[package])
             version=PackageReader.get_installed_version(node.pkg_name,self.project_path)
             node.set_version(version)
             current_node.add_child(node)
@@ -107,7 +109,7 @@ class DependencyManager:
         root = DepNode(package_name, version)
         tree = DependencyTree(root)
         self.build_branches(root, tree)
-        pass
+        tree.print_tree(tree.root)
 
 if __name__ == "__main__":
     p_path='C:/Users/vland/source/repos/depmanagertestproject'

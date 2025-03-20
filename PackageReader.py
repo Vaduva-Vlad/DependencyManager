@@ -62,6 +62,23 @@ class PackageReader():
             reqs[comp]=version
         return pkg_name, reqs
 
+    @staticmethod
+    def get_package_name(dependency):
+        dependency = dependency.split(';')[0]
+        # split the package name from its requirements
+        info = re.findall(r"^[^<=|>=|==|>|<]*(<=|>=|==|>|<)(.*)$", dependency)
+        info = [tuple(filter(None, item)) for item in info]
+        results = [r.strip() for tup in info for r in tup]
+        results = "".join(results)
+        if len(results) == 0:
+            # no requirements info was given, return the package name
+            return dependency, None
+        pkg_name = dependency.split(results[0])[0]
+        if '(' in pkg_name:
+            pkg_name = pkg_name.split('(')[0]
+        pkg_name = pkg_name.strip()
+        return pkg_name
+
 if __name__ == '__main__':
     project_path = 'C:/Users/vland/source/repos/depmanagertestproject'
     package_reader = PackageReader(project_path)
