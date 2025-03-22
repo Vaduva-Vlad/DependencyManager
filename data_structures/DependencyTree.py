@@ -17,6 +17,8 @@ class DependencyTree:
             path.pop()
 
     def print_tree(self, node, level=0,visited=[], path=[]):
+        if self.has_cycle:
+            return
         print("  "*level,node.pkg_name)
         visited.append(node)
         path.append(node)
@@ -46,12 +48,13 @@ if __name__ == "__main__":
     b=DepNode('B')
     c=DepNode('C')
     d=DepNode('D')
-
+    e=DepNode('E')
     root.children.append(b)
     root.children.append(d)
     b.children.append(c)
     #c.children.append(d)
     d.children.append(c)
+    #c.children.append(b)
     t=DependencyTree(root)
     t.find_cycle(t.root)
     print(t.has_cycle)

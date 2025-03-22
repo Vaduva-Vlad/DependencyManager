@@ -90,7 +90,7 @@ class DependencyManager:
             dependency_names.append(name)
         return dependency_names
 
-    def build_branches(self, current_node, tree):
+    def build_branches(self, current_node, tree, discovered_packages={}):
         dependencies=self.get_installed_package_dependencies('-'.join([current_node.pkg_name,current_node.version]))
         dependencies = self.filter_by_installable(dependencies)
         dependency_names=self.get_dep_names(dependencies)
