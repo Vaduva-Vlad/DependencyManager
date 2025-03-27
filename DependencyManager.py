@@ -102,8 +102,15 @@ class DependencyManager:
             node = DepNode(package, self.installed_packages[package])
             version=PackageReader.get_installed_version(node.pkg_name,self.project_path)
             node.set_version(version)
+
+            # If true, the package has been found as a dependency before, for another package
+            if package not in discovered_packages.keys():
+                discovered_packages[package] = node
+                self.build_branches(node, tree, discovered_packages)
+            else:
+                node=discovered_packages[package]
+                node.parents.append(current_node)
             current_node.add_child(node)
-            self.build_branches(node, tree)
 
     def build_dep_tree(self, package_name, version):
         root = DepNode(package_name, version)
