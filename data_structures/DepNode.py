@@ -1,8 +1,12 @@
 from PackageReader import PackageReader
 class DepNode:
-    def __init__(self, pkg, version=None):
+    def __init__(self, pkg, version=None, version_reqs=None):
         self.children = []
-        self.pkg_name,self.version_reqs = PackageReader.get_version_reqs(pkg)
+        if version_reqs is None:
+            self.pkg_name,self.version_reqs = PackageReader.get_version_reqs(pkg)
+        else:
+            self.pkg_name=pkg
+            self.version_reqs=version_reqs
         self.parents=[]
         self.version=version
 

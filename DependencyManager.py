@@ -82,25 +82,32 @@ class DependencyManager:
     def filter_by_installable(self, dependencies):
         return self.filter_by_py_version(dependencies)
 
-    def get_dep_names(self,dependencies):
-        dependency_names=[]
+    def get_dep_names(self, dependencies):
+        dependency_names = []
         for dependency in dependencies:
-            name=PackageReader.get_package_name(dependency)
-            name='_'.join(name.split('-'))
+            name = PackageReader.get_package_name(dependency)
+            name = '_'.join(name.split('-'))
             dependency_names.append(name)
         return dependency_names
 
     def build_branches(self, current_node, tree, discovered_packages={}):
-        dependencies=self.get_installed_package_dependencies('-'.join([current_node.pkg_name,current_node.version]))
+        dependencies = self.get_installed_package_dependencies('-'.join([current_node.pkg_name, current_node.version]))
         dependencies = self.filter_by_installable(dependencies)
-        dependency_names=self.get_dep_names(dependencies)
+        dependency_names = self.get_dep_names(dependencies)
         if len(dependencies) == 0:
             return
+
+        dep_dict = {}
+        for dependency in dependencies:
+            name, version_req = PackageReader.get_version_reqs(dependency)
+            name = '_'.join(name.split('-'))
+            dep_dict[name] = version_req
+
         for package in self.installed_packages.keys():
             if package not in dependency_names:
                 continue
-            node = DepNode(package, self.installed_packages[package])
-            version=PackageReader.get_installed_version(node.pkg_name,self.project_path)
+            node = DepNode(package, self.installed_packages[package], dep_dict[package])
+            version = PackageReader.get_installed_version(node.pkg_name, self.project_path)
             node.set_version(version)
 
             # If true, the package has been found as a dependency before, for another package
@@ -108,7 +115,7 @@ class DependencyManager:
                 discovered_packages[package] = node
                 self.build_branches(node, tree, discovered_packages)
             else:
-                node=discovered_packages[package]
+                node = discovered_packages[package]
                 node.parents.append(current_node)
             current_node.add_child(node)
 
@@ -116,15 +123,34 @@ class DependencyManager:
         root = DepNode(package_name, version)
         tree = DependencyTree(root)
         self.build_branches(root, tree)
+        self.dep_tree = tree
         tree.print_tree(tree.root)
 
+    def check_for_version_problems(self, current_node, bad_packages=[]):
+        dependencies=current_node.children
+        if len(dependencies) == 0:
+            return
+
+        for dependency in dependencies:
+            installed_version=Version(dependency.version)
+
+            operator=list(dependency.version_reqs.keys())[0]
+            required_version=Version(dependency.version_reqs[operator])
+            verson_matches=op[operator](installed_version, required_version)
+            if not verson_matches:
+                bad_packages.append(dependency.pkg_name)
+            self.check_for_version_problems(dependency, bad_packages)
+        return bad_packages
+
+
 if __name__ == "__main__":
-    p_path='C:/Users/vland/source/repos/depmanagertestproject'
+    p_path = 'C:/Users/vland/source/repos/depmanagertestproject'
     p_info = ProjectInfo()
     p_reader = PackageReader(p_path)
-    d = DependencyManager(p_path, p_info,p_reader)
+    d = DependencyManager(p_path, p_info, p_reader)
     # data = d.get_installed_package_dependencies('pandas-2.2.3')
     # data = d.get_dependencies_pypi('requests')
     # c = d.filter_by_installable(data)
     # print(c)
-    d.build_dep_tree('pandas','2.2.3')
+    d.build_dep_tree('pandas', '2.2.3')
+    print(d.check_for_version_problems(d.dep_tree.root))
