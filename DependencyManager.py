@@ -142,6 +142,22 @@ class DependencyManager:
             self.check_for_version_problems(dependency, bad_packages)
         return bad_packages
 
+    def check_for_missing_dependencies(self, current_node, missing_dependencies={}):
+        dependencies = self.get_installed_package_dependencies('-'.join([current_node.pkg_name, current_node.version]))
+        dependencies = self.filter_by_installable(dependencies)
+
+        if len(dependencies) == 0:
+            return
+
+        for dependency in dependencies:
+            name, reqs = PackageReader.get_version_reqs(dependency)
+            name = '_'.join(name.split('-'))
+            if name not in self.installed_packages.keys():
+                missing_dependencies[name] = reqs
+
+        for child in current_node.children:
+            self.check_for_missing_dependencies(child, missing_dependencies)
+        return missing_dependencies
 
 if __name__ == "__main__":
     p_path = 'C:/Users/vland/source/repos/depmanagertestproject'
@@ -153,4 +169,4 @@ if __name__ == "__main__":
     # c = d.filter_by_installable(data)
     # print(c)
     d.build_dep_tree('pandas', '2.2.3')
-    print(d.check_for_version_problems(d.dep_tree.root))
+    print(d.check_for_missing_dependencies(d.dep_tree.root))
