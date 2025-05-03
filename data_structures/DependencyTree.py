@@ -19,7 +19,10 @@ class DependencyTree:
     def print_tree(self, node, level=0,visited=[], path=[]):
         if self.has_cycle:
             return
-        print("  "*level,node.pkg_name, node.version_reqs)
+        if node.version_reqs is not None:
+            print("  "*level,node.pkg_name, node.version_reqs['operator'],node.version_reqs['version'])
+        else:
+            print("  " * level, node.pkg_name)
         visited.append(node)
         path.append(node)
         for child in node.children:

@@ -5,7 +5,7 @@ from DependencyManager import DependencyManager
 from PackageReader import PackageReader
 
 
-class ProjectExplorer():
+class ProjectExplorer:
     def __init__(self, project_path,project_info):
         self.project_path = project_path
         self.project_info = project_info

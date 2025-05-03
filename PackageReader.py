@@ -1,6 +1,10 @@
 import os
 from pathlib import Path
 import re
+from packaging.version import Version
+from data_structures.operator_lookup_table import op
+
+import requests
 
 
 class PackageReader():
@@ -9,10 +13,10 @@ class PackageReader():
 
     def read_installed_packages(self):
         package_info = {}
-        site_packages_path = os.path.join(self.project_path, '.venv', 'Lib', 'site-packages')
-        site_packages_contents = os.listdir(site_packages_path)
+        packages_file_path = os.path.join(self.project_path, '.venv', 'Lib', 'site-packages')
+        packages_file_contents = os.listdir(packages_file_path)
         always_installed_packages=['pip','setuptools','wheel']
-        for file in site_packages_contents:
+        for file in packages_file_contents:
             if file.endswith('.dist-info') or file.endswith('.egg-info'):
                 package_and_version = Path(file).stem.rsplit('-', 1)
                 package = package_and_version[0]
@@ -23,9 +27,9 @@ class PackageReader():
 
     @staticmethod
     def get_installed_version(pkg_name,project_path):
-        site_packages_path = os.path.join(project_path, '.venv', 'Lib', 'site-packages')
-        site_packages_contents = os.listdir(site_packages_path)
-        for file in site_packages_contents:
+        packages_file_path = os.path.join(project_path, '.venv', 'Lib', 'site-packages')
+        packages_file_contents = os.listdir(packages_file_path)
+        for file in packages_file_contents:
             if file.endswith('.dist-info') or file.endswith('.egg-info'):
                 package_and_version = Path(file).stem.split('-', 1)
                 package = package_and_version[0]
@@ -59,7 +63,8 @@ class PackageReader():
             comp_and_version=[i for i in comp_and_version[0]]
             comp=comp_and_version[0]
             version=comp_and_version[1]
-            reqs[comp]=version
+            reqs["operator"]=comp
+            reqs["version"]=version
         return pkg_name, reqs
 
     @staticmethod
@@ -79,7 +84,22 @@ class PackageReader():
         pkg_name = pkg_name.strip()
         return pkg_name
 
+    @staticmethod
+    def get_all_package_releases(package_name):
+        url=f"https://pypi.org/pypi/{package_name}/json"
+        response = requests.get(url).json()
+        releases=list(response['releases'].keys())
+        releases=[Version(release) for release in releases]
+        return releases
+
+    @staticmethod
+    def filter_release_list(releases, operator, version):
+        releases=[release for release in releases if op[operator](release,version)]
+        return releases
+
+
 if __name__ == '__main__':
     project_path = 'C:/Users/vland/source/repos/depmanagertestproject'
     package_reader = PackageReader(project_path)
-    print(package_reader.read_installed_packages())
+    releases=PackageReader.get_all_package_releases("pandas")
+    print(package_reader.filter_release_list(releases, "<", Version("1.0.0")))

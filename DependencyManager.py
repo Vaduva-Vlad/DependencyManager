@@ -48,7 +48,7 @@ class DependencyManager:
         return data if data is not None else []
 
     def get_latest_version_info_pypi(self, package):
-        url=f"https://pypi.org/pypi/{package}/json"
+        url = f"https://pypi.org/pypi/{package}/json"
         version = requests.get(url).json()['info']['version']
         return Version(version)
 
@@ -116,7 +116,7 @@ class DependencyManager:
             node.set_version(version)
 
             # If true, the package has been found as a dependency before, for another package
-            if package not in discovered_packages.keys() or discovered_packages[package].version_reqs!=node.version:
+            if package not in discovered_packages.keys() or discovered_packages[package].version_reqs != node.version:
                 discovered_packages[package] = node
                 self.build_branches(node, tree, discovered_packages)
             else:
@@ -132,16 +132,16 @@ class DependencyManager:
         tree.print_tree(tree.root)
 
     def find_mismatched_versions(self, current_node, bad_packages={}):
-        dependencies=current_node.children
+        dependencies = current_node.children
         if len(dependencies) == 0:
             return
 
         for dependency in dependencies:
-            installed_version=Version(dependency.version)
+            installed_version = Version(dependency.version)
 
-            operator=list(dependency.version_reqs.keys())[0]
-            required_version=Version(dependency.version_reqs[operator])
-            version_matches=op[operator](installed_version, required_version)
+            operator = dependency.version_reqs["operator"]
+            required_version = Version(dependency.version_reqs["version"])
+            version_matches = op[operator](installed_version, required_version)
             if not version_matches:
                 if dependency.pkg_name in bad_packages:
                     bad_packages[dependency.pkg_name].append(dependency)
@@ -150,27 +150,27 @@ class DependencyManager:
             self.find_mismatched_versions(dependency, bad_packages)
         return bad_packages
 
-    def get_packages_with_dependency(self, dependency, current_node, packages=[]):
+    def get_version_ranges(self, dependency, current_node, packages=[]):
         if len(current_node.children) == 0:
             return
         for child in current_node.children:
             if child.pkg_name == dependency:
-                packages.append(current_node)
-            self.get_packages_with_dependency(dependency, child, packages)
+                packages.append((child.version_reqs["operator"],child.version_reqs["version"]))
+            self.get_version_ranges(dependency, child, packages)
         return packages
 
-    def find_common_version(self, dependency_name, nodes):
-        reqs=[]
-        for node in nodes:
-            current_reqs=node.version_reqs
-            current_reqs
-            reqs.append(node.version_reqs)
-        pass
+    def find_common_version(self, dependency_name, version_ranges):
+        releases=PackageReader.get_all_package_releases(dependency_name)
+
+        for pair in version_ranges:
+            releases=PackageReader.filter_release_list(releases,pair[0],Version(pair[1]))
+        return releases
 
     def diagnose_versions(self):
-        version_problems=self.find_mismatched_versions(self.dep_tree.root)
+        version_problems = self.find_mismatched_versions(self.dep_tree.root)
         for dependency in version_problems.keys():
-            parent_packages=self.get_packages_with_dependency(dependency, self.dep_tree.root)
+            version_ranges = self.get_version_ranges(dependency, self.dep_tree.root)
+            valid_versions=self.find_common_version(dependency,version_ranges)
 
     def check_for_missing_dependencies(self, current_node, missing_dependencies={}):
         dependencies = self.get_installed_package_dependencies('-'.join([current_node.pkg_name, current_node.version]))
@@ -188,6 +188,7 @@ class DependencyManager:
         for child in current_node.children:
             self.check_for_missing_dependencies(child, missing_dependencies)
         return missing_dependencies
+
 
 if __name__ == "__main__":
     p_path = 'C:/Users/vland/source/repos/depmanagertestproject'
