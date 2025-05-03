@@ -47,6 +47,11 @@ class DependencyManager:
         data = requests.get(url).json()['info']['requires_dist']
         return data if data is not None else []
 
+    def get_latest_version_info_pypi(self, package):
+        url=f"https://pypi.org/pypi/{package}/json"
+        version = requests.get(url).json()['info']['version']
+        return Version(version)
+
     def get_py_dep_reqs(self, dependency):
         info = re.findall(r"(python_version)|(>=|<=|==|<|>)|\"(.*?)\"", dependency)
         info = [tuple(filter(None, item)) for item in info]
@@ -111,7 +116,7 @@ class DependencyManager:
             node.set_version(version)
 
             # If true, the package has been found as a dependency before, for another package
-            if package not in discovered_packages.keys():
+            if package not in discovered_packages.keys() or discovered_packages[package].version_reqs!=node.version:
                 discovered_packages[package] = node
                 self.build_branches(node, tree, discovered_packages)
             else:
@@ -126,7 +131,7 @@ class DependencyManager:
         self.dep_tree = tree
         tree.print_tree(tree.root)
 
-    def check_for_version_problems(self, current_node, bad_packages=[]):
+    def find_mismatched_versions(self, current_node, bad_packages={}):
         dependencies=current_node.children
         if len(dependencies) == 0:
             return
@@ -136,11 +141,36 @@ class DependencyManager:
 
             operator=list(dependency.version_reqs.keys())[0]
             required_version=Version(dependency.version_reqs[operator])
-            verson_matches=op[operator](installed_version, required_version)
-            if not verson_matches:
-                bad_packages.append(dependency.pkg_name)
-            self.check_for_version_problems(dependency, bad_packages)
+            version_matches=op[operator](installed_version, required_version)
+            if not version_matches:
+                if dependency.pkg_name in bad_packages:
+                    bad_packages[dependency.pkg_name].append(dependency)
+                else:
+                    bad_packages[dependency.pkg_name] = [dependency]
+            self.find_mismatched_versions(dependency, bad_packages)
         return bad_packages
+
+    def get_packages_with_dependency(self, dependency, current_node, packages=[]):
+        if len(current_node.children) == 0:
+            return
+        for child in current_node.children:
+            if child.pkg_name == dependency:
+                packages.append(current_node)
+            self.get_packages_with_dependency(dependency, child, packages)
+        return packages
+
+    def find_common_version(self, dependency_name, nodes):
+        reqs=[]
+        for node in nodes:
+            current_reqs=node.version_reqs
+            current_reqs
+            reqs.append(node.version_reqs)
+        pass
+
+    def diagnose_versions(self):
+        version_problems=self.find_mismatched_versions(self.dep_tree.root)
+        for dependency in version_problems.keys():
+            parent_packages=self.get_packages_with_dependency(dependency, self.dep_tree.root)
 
     def check_for_missing_dependencies(self, current_node, missing_dependencies={}):
         dependencies = self.get_installed_package_dependencies('-'.join([current_node.pkg_name, current_node.version]))
@@ -169,4 +199,4 @@ if __name__ == "__main__":
     # c = d.filter_by_installable(data)
     # print(c)
     d.build_dep_tree('pandas', '2.2.3')
-    print(d.check_for_missing_dependencies(d.dep_tree.root))
+    d.diagnose_versions()
