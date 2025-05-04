@@ -3,6 +3,7 @@ from exceptions.PackageNotInstalledException import PackageNotInstalledException
 
 from DependencyManager import DependencyManager
 from PackageReader import PackageReader
+from security.VulnerabilityChecker import VulnerabilityChecker
 
 
 class ProjectExplorer:
@@ -11,6 +12,7 @@ class ProjectExplorer:
         self.project_info = project_info
         self.package_reader=PackageReader(project_path)
         self.dependency_manager=DependencyManager(project_path, project_info,self.package_reader)
+        self.vulnerability_checker=VulnerabilityChecker(project_path)
 
     def get_installed_dependencies(self,package_name):
         installed_packages=self.package_reader.read_installed_packages()
