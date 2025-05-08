@@ -25,6 +25,9 @@ class ProjectExplorer:
     def get_dependencies_pypi(self,package_name):
         return self.dependency_manager.get_dependencies_pypi(package_name)
 
+    def find_vulnerabilities(self,package=None, version=None):
+        self.vulnerability_checker.report_vulnerabilities(package,version)
+
 if __name__ == '__main__':
     project_path='C:/Users/vland/source/repos/depmanagertestproject'
     p_info=ProjectInfo()
