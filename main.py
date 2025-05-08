@@ -1,6 +1,10 @@
 import argparse
 from commands.VulnerabilityCommand import VulnerabilityCommand
 
+def main():
+    if args.vuln or args.pkg_vuln:
+        command = VulnerabilityCommand("")
+        command.run(args)
 
 if __name__=="__main__":
     parser=argparse.ArgumentParser(description="Diagnose issues with dependencies")
@@ -8,5 +12,4 @@ if __name__=="__main__":
     parser.add_argument("--pkg_vuln")
     args=parser.parse_args()
 
-    command=VulnerabilityCommand("C:/Users/vland/source/repos/depmanagertestproject")
-    command.run(args)
+    main()
