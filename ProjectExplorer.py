@@ -1,4 +1,7 @@
+import argparse
+
 from ProjectInfo import ProjectInfo
+from commands.VulnerabilityCommand import VulnerabilityCommand
 from exceptions.PackageNotInstalledException import PackageNotInstalledException
 
 from DependencyManager import DependencyManager
@@ -25,13 +28,19 @@ class ProjectExplorer:
     def get_dependencies_pypi(self,package_name):
         return self.dependency_manager.get_dependencies_pypi(package_name)
 
-    def find_vulnerabilities(self,package=None, version=None):
-        self.vulnerability_checker.report_vulnerabilities(package,version)
+    def run_command(self,args):
+        if args.vuln or args.pkg_vuln:
+            command = VulnerabilityCommand(self.project_path)
+            command.run(args)
 
 if __name__ == '__main__':
-    project_path='C:/Users/vland/source/repos/depmanagertestproject'
+    parser = argparse.ArgumentParser(description="Diagnose issues with dependencies")
+    parser.add_argument("--vuln", action="store_true")
+    parser.add_argument("--pkg_vuln")
+    parser.add_argument("--scan-dependencies",choices=["all","circular","versions"])
+    args = parser.parse_args()
+    project_path=''
     p_info=ProjectInfo()
     p=ProjectExplorer(project_path,p_info)
-    dep=p.get_dependencies_pypi('pandas')
-    f=p.dependency_manager.filter_by_installable(dep)
-    print(f)
+
+    p.run_command(args)
