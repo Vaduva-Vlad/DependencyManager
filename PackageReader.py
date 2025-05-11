@@ -77,7 +77,7 @@ class PackageReader():
         results = "".join(results)
         if len(results) == 0:
             # no requirements info was given, return the package name
-            return dependency, None
+            return dependency.strip()
         pkg_name = dependency.split(results[0])[0]
         if '(' in pkg_name:
             pkg_name = pkg_name.split('(')[0]

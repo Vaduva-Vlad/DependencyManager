@@ -8,6 +8,7 @@ from packaging.version import Version
 from data_structures.operator_lookup_table import op
 from data_structures.DependencyTree import DependencyTree
 from data_structures.DepNode import DepNode
+from collections import defaultdict
 
 
 class DependencyManager:
@@ -54,7 +55,7 @@ class DependencyManager:
         return Version(version)
 
     def get_py_dep_reqs(self, dependency):
-        info = re.findall(r"(python_version)|(>=|<=|==|<|>)|\"(.*?)\"", dependency)
+        info = re.findall(r"(python_version)|(>=|<=|==|<|>)|\"(.*?)\"|\'(.*?)\'", dependency)
         info = [tuple(filter(None, item)) for item in info]
         results = [r for tup in info for r in tup]
         reqs = {}
@@ -93,15 +94,21 @@ class DependencyManager:
         for dependency in dependencies:
             name = PackageReader.get_package_name(dependency)
             name = '_'.join(name.split('-'))
-            dependency_names.append(name)
+            dependency_names.append(name.lower())
         return dependency_names
 
-    def build_branches(self, current_node, discovered_packages={}, local=True):
+    def identify_parent(self,nodes,reqs):
+        for node in nodes:
+            if node.version_reqs==reqs:
+                return node
+
+    def build_branches(self, current_node, discovered_packages, local=True):
         if local:
             dependencies = self.get_installed_package_dependencies(
                 '-'.join([current_node.pkg_name, current_node.version]))
         else:
             dependencies = self.get_dependencies_pypi(current_node.pkg_name, current_node.version)
+        #TODO: update to filter by OS!!
         dependencies = self.filter_by_installable(dependencies)
         dependency_names = self.get_dep_names(dependencies)
         if len(dependencies) == 0:
@@ -111,30 +118,48 @@ class DependencyManager:
         for dependency in dependencies:
             name, version_req = PackageReader.get_version_reqs(dependency)
             name = '_'.join(name.split('-'))
+            name=name.lower()
             dep_dict[name] = version_req
 
         for package in self.installed_packages.keys():
-            if package not in dependency_names:
+            if package.lower() not in dependency_names:
                 continue
-            node = DepNode(package, self.installed_packages[package], dep_dict[package])
+            node = DepNode(package, self.installed_packages[package], dep_dict[package.lower()])
             version = PackageReader.get_installed_version(node.pkg_name, self.project_path)
             node.set_version(version)
 
             # If true, the package has been found as a dependency before, for another package
-            if package not in discovered_packages.keys() or discovered_packages[package].version_reqs != node.version:
-                discovered_packages[package] = node
+            if not self.is_package_discovered(node,discovered_packages):
+                discovered_packages[package].append(node)
                 self.build_branches(node, discovered_packages)
             else:
-                node = discovered_packages[package]
-                node.parents.append(current_node)
+                node = self.identify_parent(discovered_packages[package],dep_dict[package])
             current_node.add_child(node)
 
     def build_dep_tree(self, package_name, version, local=True):
-        root = DepNode(package_name, version)
-        tree = DependencyTree(root)
-        self.build_branches(root, {}, local)
-        self.dep_tree = tree
-        tree.print_tree(tree.root)
+        # root = DepNode(package_name, version)
+        # tree = DependencyTree(root)
+        # self.build_branches(root, {}, local)
+        # self.dep_tree = tree
+        # tree.print_tree(tree.root)
+        discovered_packages=defaultdict(list)
+        for package in self.installed_packages.keys():
+            version=self.installed_packages[package]
+            node=DepNode(package,version)
+            if not self.is_package_discovered(node,discovered_packages):
+                discovered_packages[node.pkg_name].append(node)
+            self.build_branches(node,discovered_packages,True)
+
+    def is_package_discovered(self,package_node,discovered_packages):
+        if package_node.pkg_name not in discovered_packages.keys():
+            return False
+        discovered=discovered_packages[package_node.pkg_name]
+        for node in discovered:
+            if node.version_reqs is None:
+                node.version_reqs=package_node.version_reqs
+            if node.version_reqs==package_node.version_reqs:
+                return True
+        return False
 
     def find_mismatched_versions(self, current_node, bad_packages={}):
         dependencies = current_node.children
@@ -154,6 +179,10 @@ class DependencyManager:
                     bad_packages[dependency.pkg_name] = [dependency]
             self.find_mismatched_versions(dependency, bad_packages)
         return bad_packages
+
+    def get_packages_with_dependency(self,dependency):
+        for package in self.installed_packages.keys():
+            dependencies=self.get_installed_package_dependencies(f"{package}-{self.installed_packages[package]}")
 
     def get_version_ranges(self, dependency, current_node, packages=[]):
         if len(current_node.children) == 0:
@@ -212,5 +241,6 @@ if __name__ == "__main__":
     d.build_dep_tree('pandas', '2.2.3', True)
     pass
     #print(d.check_for_missing_dependencies(d.dep_tree.root))
-    #d.diagnose_versions()
-    d.validate_version('python-dateutil',"2.8.2")
+    # d.diagnose_versions()
+    # d.validate_version('python-dateutil',"2.8.2")
+    d.get_packages_with_dependency('numpy')
