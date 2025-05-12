@@ -133,7 +133,7 @@ class DependencyManager:
                 discovered_packages[package].append(node)
                 self.build_branches(node, discovered_packages)
             else:
-                node = self.identify_parent(discovered_packages[package],dep_dict[package])
+                node = self.identify_parent(discovered_packages[package],dep_dict[package.lower()])
             current_node.add_child(node)
 
     def build_dep_tree(self, package_name, version, local=True):
@@ -150,9 +150,14 @@ class DependencyManager:
                 discovered_packages[node.pkg_name].append(node)
             self.build_branches(node,discovered_packages,True)
 
+        return discovered_packages
+
     def is_package_discovered(self,package_node,discovered_packages):
         if package_node.pkg_name not in discovered_packages.keys():
             return False
+        else:
+            if package_node.version_reqs is None:
+                return True
         discovered=discovered_packages[package_node.pkg_name]
         for node in discovered:
             if node.version_reqs is None:
@@ -160,6 +165,19 @@ class DependencyManager:
             if node.version_reqs==package_node.version_reqs:
                 return True
         return False
+
+    def find_root_packages(self,pkg_dict):
+        packages=pkg_dict.copy()
+        for pkg_name in packages:
+            node_list=pkg_dict[pkg_name]
+            node=0
+            while node < len(node_list):
+                if len(node_list[node].parents)!=0:
+                    node_list.pop(node)
+                else:
+                    node+=1
+            if len(node_list)==0:
+                pkg_dict.pop(pkg_name,None)
 
     def find_mismatched_versions(self, current_node, bad_packages={}):
         dependencies = current_node.children
@@ -234,12 +252,12 @@ class DependencyManager:
         pass
 
 if __name__ == "__main__":
-    p_path = 'C:/Users/vland/source/repos/depmanagertestproject'
+    p_path = ''
     p_info = ProjectInfo()
     p_reader = PackageReader(p_path)
     d = DependencyManager(p_path, p_info, p_reader)
-    d.build_dep_tree('pandas', '2.2.3', True)
-    pass
+    pkg=d.build_dep_tree('pandas', '2.2.3', True)
+    d.find_root_packages(pkg)
     #print(d.check_for_missing_dependencies(d.dep_tree.root))
     # d.diagnose_versions()
     # d.validate_version('python-dateutil',"2.8.2")
