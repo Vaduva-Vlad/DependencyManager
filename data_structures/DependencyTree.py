@@ -16,18 +16,26 @@ class DependencyTree:
                 self.find_cycle(child, visited, path)
             path.pop()
 
-    def print_tree(self, node, level=0,visited=[], path=[]):
+    def print_tree(self, node, level=0, visited=[], path=[]):
         if self.has_cycle:
             return
         if node.version_reqs is not None:
-            print("  "*level,node.pkg_name, node.version_reqs['operator'],node.version_reqs['version'])
+            print("  " * level, node.pkg_name, node.version_reqs['operator'], node.version_reqs['version'])
         else:
             print("  " * level, node.pkg_name)
         visited.append(node)
         path.append(node)
         for child in node.children:
-            self.print_tree(child, level+1,visited, path)
+            self.print_tree(child, level + 1, visited, path)
         path.pop()
+
+    #Traverse the tree and run a function for each node
+    def traverse(self, node, func, args):
+        if self.has_cycle:
+            return
+        func(node, *args)
+        for child in node.children:
+            self.traverse(child, func, args)
 
 if __name__ == "__main__":
     # root = DepNode('5')
@@ -46,20 +54,16 @@ if __name__ == "__main__":
     # root.children.append(n7)
     # t = DependencyTree(root)
 
-
-    root=DepNode('A')
-    b=DepNode('B')
-    c=DepNode('C')
-    d=DepNode('D')
-    e=DepNode('E')
+    root = DepNode('A')
+    b = DepNode('B')
+    c = DepNode('C')
+    d = DepNode('D')
+    e = DepNode('E')
     root.children.append(b)
     root.children.append(d)
     b.children.append(c)
-    #c.children.append(d)
+    # c.children.append(d)
     d.children.append(c)
-    #c.children.append(b)
-    t=DependencyTree(root)
-    t.find_cycle(t.root)
-    print(t.has_cycle)
-
-    t.print_tree(t.root)
+    # c.children.append(b)
+    t = DependencyTree(root)
+    t.traverse(t.root)
