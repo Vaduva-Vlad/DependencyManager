@@ -179,7 +179,7 @@ class DependencyManager:
             if len(node_list) == 0:
                 pkg_dict.pop(pkg_name, None)
 
-    def find_mismatched_versions(self, current_node, bad_packages={}):
+    def find_mismatched_versions(self, current_node, bad_packages):
         dependencies = current_node.children
         if len(dependencies) == 0:
             return {}
@@ -191,17 +191,13 @@ class DependencyManager:
             required_version = Version(dependency.version_reqs["version"])
             version_matches = op[operator](installed_version, required_version)
             if not version_matches:
-                if dependency.pkg_name in bad_packages:
                     bad_packages[dependency.pkg_name].append(dependency)
-                else:
-                    bad_packages[dependency.pkg_name] = [dependency]
             self.find_mismatched_versions(dependency, bad_packages)
-        return bad_packages
 
     def find_parents(self, node, package_name, result):
         for child in node.children:
             if child.pkg_name==package_name:
-                result.append(node)
+                result.append({"parent": node,"child":child})
 
     def get_packages_with_dependency(self, dependency):
         parents=[]
@@ -216,7 +212,6 @@ class DependencyManager:
             if child.pkg_name == dependency:
                 packages.append((child.version_reqs["operator"], child.version_reqs["version"]))
             self.get_version_ranges(dependency, child, packages)
-        return packages
 
     def find_common_version(self, dependency_name, version_ranges):
         releases = PackageReader.get_all_package_releases(dependency_name)
@@ -225,20 +220,34 @@ class DependencyManager:
             releases = PackageReader.filter_release_list(releases, pair[0], Version(pair[1]))
         return releases
 
-    def validate_version(self, package_name, version):
-        new_branches = DepNode(package_name, str(version))
-        self.build_branches(new_branches, {}, False)
-        new_subtree=DependencyTree(new_branches)
-        res=new_subtree.traverse(new_subtree.node, self.get_packages_with_dependency,[package_name])
+    def validate_version(self, current_node, version, incompatible_packages={}):
+        parents=self.get_packages_with_dependency(current_node.pkg_name)
+        for parent in parents:
+            child=parent['child']
+            operator=child.version_reqs["operator"]
+            child_version=Version(child.version_reqs["version"])
+            if not op[operator](version,child_version):
+                incompatible_packages[parent["parent"].pkg_name]=(child.pkg_name,child.version_reqs)
+        for child in current_node.children:
+            self.validate_version(child, Version(child.version),incompatible_packages)
 
     def diagnose_versions(self):
+        version_problems=defaultdict(list)
         for tree in self.dep_trees:
-            version_problems = self.find_mismatched_versions(tree.root)
-            for dependency in version_problems.keys():
-                version_ranges = self.get_version_ranges(dependency, tree.root)
-                common_versions = self.find_common_version(dependency, version_ranges)
-                new_version = max(common_versions)
-                self.validate_version(dependency, new_version)
+            self.find_mismatched_versions(tree.root,version_problems)
+
+        for dependency in version_problems.keys():
+            version_ranges=[]
+            for tree in self.dep_trees:
+                self.get_version_ranges(dependency,tree.root, version_ranges)
+            common_versions = self.find_common_version(dependency, version_ranges)
+            new_version = max(common_versions)
+            new_branches = DepNode(dependency, str(new_version))
+            self.build_branches(new_branches, defaultdict(list), False)
+            new_subtree = DependencyTree(new_branches)
+            incompatible_packages={}
+            self.validate_version(new_subtree.root, new_version,incompatible_packages)
+            pass
 
     def check_for_missing_dependencies(self, current_node, missing_dependencies={}):
         dependencies = self.get_installed_package_dependencies('-'.join([current_node.pkg_name, current_node.version]))
@@ -259,10 +268,10 @@ class DependencyManager:
 
 
 if __name__ == "__main__":
-    p_path = 'C:/Users/vland/source/repos/depmanagertestproject'
+    p_path = ''
     p_info = ProjectInfo()
     p_reader = PackageReader(p_path)
     d = DependencyManager(p_path, p_info, p_reader)
-    #d.diagnose_versions()
-    d.validate_version('python-dateutil',"2.8.2")
+    d.diagnose_versions()
+    d.validate_version('pandas',"2.2.2")
     d.get_packages_with_dependency('numpy')
